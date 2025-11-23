@@ -1,17 +1,15 @@
 import { fetchArticles } from "@/lib/news";
 import { inngest } from "../client";
+import { marked } from "marked";
+import { sendEmail } from "@/lib/email";
 
-// --- FIX: Use export const (Named Export) for better reliability ---
 export const scheduledNewsletter = inngest.createFunction(
     { id: "newsletter/scheduled" },
     { event: "newsletter.schedule" },
     async ({ event, step, runId }) => {
 
-        // --- FIX: Get categories from the event, NOT hardcoded ---
-        const categories = ["technology", "business", "politics"]
-
+        const categories = event.data.categories;
         const allArticles = await step.run("fetch-news", async () => {
-            // Uses the dynamic categories sent from the route
             return fetchArticles(categories);
         });
 
@@ -43,7 +41,22 @@ export const scheduledNewsletter = inngest.createFunction(
             },
         });
 
-        console.log(summary.choices[0].message.content);
-        return { summary: summary.choices[0].message.content };
+        const newsletterContent = summary.choices[0].message.content;
+
+        if(!newsletterContent) {
+            throw new Error("Failed to generate newsletter content");
+        }
+
+        const htmlResult = await marked(newsletterContent);
+        
+        await step.run("send-email", async() => {
+            await sendEmail(event.data.email, 
+            event.data.categories.join(", "), 
+            allArticles.length,
+            htmlResult
+        );
+        })
+
+        return {};
     }
 );
