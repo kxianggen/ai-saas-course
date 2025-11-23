@@ -51,11 +51,9 @@ export async function POST(request: NextRequest){
         );
     }
 
-    // --- FIX: Send the REAL categories, not hardcoded ones ---
     await inngest.send({
         name: "newsletter.schedule",
         data: {
-            categories: categories, // <--- USES USER INPUT
         }
     })
 

@@ -5,10 +5,10 @@ import { inngest } from "../client";
 export const scheduledNewsletter = inngest.createFunction(
     { id: "newsletter/scheduled" },
     { event: "newsletter.schedule" },
-    async ({ event, step }) => {
+    async ({ event, step, runId }) => {
 
         // --- FIX: Get categories from the event, NOT hardcoded ---
-        const { categories } = event.data;
+        const categories = ["technology", "business", "politics"]
 
         const allArticles = await step.run("fetch-news", async () => {
             // Uses the dynamic categories sent from the route
