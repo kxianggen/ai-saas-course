@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/server";
+import { inngest } from "@/lib/inngest/client";
+import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest){
@@ -18,6 +19,7 @@ export async function POST(request: NextRequest){
     const body = await request.json();
     const { categories, frequency, email } = body;
 
+    // Validation
     if (!categories || !Array.isArray(categories) || categories.length === 0) {
       return NextResponse.json(
         { error: "Categories array is required and must not be empty" },
@@ -48,6 +50,14 @@ export async function POST(request: NextRequest){
             { status: 500 }
         );
     }
+
+    // --- FIX: Send the REAL categories, not hardcoded ones ---
+    await inngest.send({
+        name: "newsletter.schedule",
+        data: {
+            categories: categories, // <--- USES USER INPUT
+        }
+    })
 
     return NextResponse.json({
         success: true,
