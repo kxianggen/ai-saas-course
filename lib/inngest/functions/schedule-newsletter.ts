@@ -57,6 +57,37 @@ export const scheduledNewsletter = inngest.createFunction(
         );
         })
 
+        await step.run("schedule-next", async () => {
+            const now = new Date()
+            let nextScheduleTime: Date;
+
+            switch (event.data.frequency) {
+                case "daily":
+                    nextScheduleTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+                    break;
+                case "weekly":
+                    nextScheduleTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+                    break;
+                case "biweekly":
+                    nextScheduleTime = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+                    break;
+                default:
+                    nextScheduleTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+            }
+
+            nextScheduleTime.setHours(9, 0, 0, 0);
+
+            await inngest.send({
+                name: "newsletter.schedule",
+                data: {
+                    categories,
+                    email: event.data.email,
+                    frequency: event.data.frequency,
+                },
+                ts: nextScheduleTime.getTime(),
+            })
+        })
         return {};
     }
 );
