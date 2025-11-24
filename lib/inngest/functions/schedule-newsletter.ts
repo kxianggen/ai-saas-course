@@ -2,11 +2,35 @@ import { fetchArticles } from "@/lib/news";
 import { inngest } from "../client";
 import { marked } from "marked";
 import { sendEmail } from "@/lib/email";
+import { createClient } from "@/lib/supabase/server";
 
 export const scheduledNewsletter = inngest.createFunction(
-    { id: "newsletter/scheduled" },
+    { id: "newsletter/scheduled", cancelOn: [{
+        event: "newsletter.schedule.deleted",
+        if: "async.data.userId == event.data.userId",
+    }] },
     { event: "newsletter.schedule" },
     async ({ event, step, runId }) => {
+
+        const isUserActive = await step.run("check-user-status", async () => {
+            const supabase = await createClient();
+            const { data, error } = await supabase
+            .from("user_preferences")
+            .select("is_active")
+            .eq("user_id", event.data.userId)
+            .single();
+
+            if(error) {
+                return false;
+            }
+
+            return data.is_active || false;
+
+        });
+
+        if (!isUserActive){
+            return{};
+        }
 
         const categories = event.data.categories;
         const allArticles = await step.run("fetch-news", async () => {
@@ -84,10 +108,13 @@ export const scheduledNewsletter = inngest.createFunction(
                     categories,
                     email: event.data.email,
                     frequency: event.data.frequency,
+                    userId: event.data.userId,
                 },
                 ts: nextScheduleTime.getTime(),
             })
         })
-        return {};
+        return {newsletter: htmlResult, 
+            articleCount: allArticles.length, 
+            nextScheduled: true,};
     }
 );
